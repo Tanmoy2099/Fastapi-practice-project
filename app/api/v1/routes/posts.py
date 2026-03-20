@@ -51,12 +51,31 @@ async def get_feed(
     if not current_user.following:
         return []
 
-    posts = await Post.find(
-        In(Post.author_id, current_user.following),
-        Post.published == True,
-    ).sort(-Post.created_at).to_list()
+    # Building an Aggregation Pipeline natively for MongoDB
+    pipeline = [
+        # Stage 1: Filter posts matching our criteria (like SQL WHERE)
+        {
+            "$match": {
+                "author_id": {"$in": current_user.following},
+                "published": True
+            }
+        },
+        # Stage 2: Sort by newest first (like SQL ORDER BY DESC)
+        {
+            "$sort": {"created_at": -1}
+        }
+    ]
 
-    result = [_to_response(p) for p in posts]
+    # Execute native PyMongo pipeline to bypass Beanie LatentCursor awaiting bug
+    cursor = Post.get_pymongo_collection().aggregate(pipeline)
+    docs = await cursor.to_list(length=None)
+
+    result = []
+    for doc in docs:
+        doc["id"] = str(doc.pop("_id"))
+        doc["author_id"] = str(doc["author_id"])
+        result.append(PostResponse(**doc))
+
     serialized = [r.model_dump() for r in result]
     await cache.set(cache_key, serialized, ttl=_FEED_CACHE_TTL)
     return result
@@ -68,8 +87,21 @@ async def get_feed(
 async def get_my_posts(
     current_user: User = Depends(get_current_active_user),
 ) -> list[PostResponse]:
-    posts = await Post.find(Post.author_id == current_user.id).sort(-Post.created_at).to_list()
-    return [_to_response(p) for p in posts]
+    # Simple Aggregation Pipeline to fetch exact user posts
+    pipeline = [
+        {"$match": {"author_id": current_user.id}},
+        {"$sort": {"created_at": -1}}
+    ]
+    cursor = Post.get_pymongo_collection().aggregate(pipeline)
+    docs = await cursor.to_list(length=None)
+
+    result = []
+    for doc in docs:
+        doc["id"] = str(doc.pop("_id"))
+        doc["author_id"] = str(doc["author_id"])
+        result.append(PostResponse(**doc))
+        
+    return result
 
 
 # ── Create ────────────────────────────────────────────────────────────────────

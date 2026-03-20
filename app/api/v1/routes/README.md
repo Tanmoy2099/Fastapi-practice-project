@@ -52,6 +52,27 @@ This file handles actions a user takes against *another* user's profile.
 This file handles content creation securely.
 - **CRUD (Create, Read, Update, Delete)**: 
   The `/posts` endpoints universally require `current_active_user`, locking strangers out entirely. When creating a post, it forces the author to be your exact ID natively.
-- **The Engine (`/feed`)**:
+- **The Engine (`/feed` & Aggregation Pipelines)**:
   This is the brilliant part. When you ask for your Feed, the code does not search all posts in the database. 
-  Instead, it grabs your `following` array containing the exact IDs of the people you follow. It invokes MongoDB's massive `In(...)` operator natively searching for *only* posts where the `author_id` intersects your explicit target array list. It perfectly filters the data without crashing Python's memory!
+  Instead, it grabs your `following` array containing the exact IDs of the people you follow, and uses a **MongoDB Aggregation Pipeline**.
+
+  ### What is an Aggregation Pipeline?
+  If you know SQL, think of this as writing raw `SELECT ... WHERE ... ORDER BY`. Instead of basic `.find()` commands, Aggregation allows us to build complex, multi-stage data processing lines perfectly on the database hardware before it ever reaches Python.
+
+  In `posts.py`, the pipeline natively maps like this:
+  ```python
+  pipeline = [
+      # STAGE 1 ($match): SQL 'WHERE'
+      {"$match": {"author_id": {"$in": current_user.following}}},
+      
+      # STAGE 2 ($sort): SQL 'ORDER BY DESC'
+      {"$sort": {"created_at": -1}}
+  ]
+
+  # Execute native PyMongo Aggregation (Extremely Fast)
+  cursor = Post.get_pymongo_collection().aggregate(pipeline)
+  return await cursor.to_list(length=None)
+  ```
+  1. **Stage 1 (`$match`)**: The physical database layer filters out anything where the `author_id` is NOT in your following list without Python ever seeing it. 
+  2. **Stage 2 (`$sort`)**: It sorts the surviving data chronologically right on the hard drive.
+  3. **The Result**: We aggressively grab the raw data dicts via `.get_pymongo_collection().aggregate()`. This bypasses heavy ODM overhead. We then loop over those tiny, lightning-fast dictionaries and map them perfectly to `PostResponse(id=...)` schema models immediately!

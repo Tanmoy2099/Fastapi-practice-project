@@ -137,7 +137,34 @@ erDiagram
 
 ---
 
-## 🛠️ 5. Getting Started & Running the Tests
+## 📦 5. The Dependency Stack (`pyproject.toml`)
+
+Modern Python projects have moved away from messy `requirements.txt` files and now use a standardized `pyproject.toml` configuration file. This file controls the entire ecosystem—what packages are installed, what version of Python is required, and how testing frameworks behave.
+
+### Why do we need these packages?
+
+#### The Core Server
+- **`fastapi`**: The actual web framework parsing HTTP requests and building routing logic (used everywhere in `/api`).
+- **`uvicorn`**: FastAPI does not have an internet server built-in. Uvicorn acts as the high-speed ASGI web server that actually binds to port `8000` to listen for network traffic (used in `main.py`).
+
+#### The Database Layer
+- **`motor`**: The official, lowest-level asynchronous driver designed to talk purely to MongoDB.
+- **`beanie`**: The Object-Document Mapper (ODM). Instead of writing raw `motor` syntax, it natively lets us write Python classes to insert/query documents cleanly (used in `/models/` and `/db/mongo.py`).
+- **`redis[asyncio]`**: The async driver allowing Python to natively drop variables directly into our fast-memory RAM database limits (used heavily in `/db/redis/`).
+
+#### Security & Validation
+- **`pydantic[email]` & `pydantic-settings`**: Pydantic validates incoming JSON natively. The `[email]` extra explicitly adds mathematical verification for User emails (used in `/schemas/`). `pydantic-settings` handles securely reading our local `.env` file secrets (used in `/core/config.py`).
+- **`passlib[bcrypt]`**: A cryptographic suite exclusively used to one-way scramble user passwords before they reach the database (used in `/core/security.py`).
+- **`pyjwt[crypto]`**: Encodes and decodes the JSON Web Tokens mapped as digital keycards for users navigating the app (used in `/core/security.py`).
+- **`slowapi`**: The engine driving our DDOS protective Rate Limiting shields natively (used in `/middlewares/rate_limiter.py`).
+
+#### Pytest Configurations
+Notice the `[tool.pytest.ini_options]` block at the bottom of the TOML file.
+This globally commands the automated testing robots to forcefully sync their asynchronous memory looping environments (`asyncio_default_test_loop_scope = "session"`). Without this instruction, Pytest physically crashes when trying to test asynchronous FastAPI Database environments cleanly!
+
+---
+
+## 🛠️ 6. Getting Started & Running the Tests
 
 **1. Boot the Ecosystem Databases:**
 ```bash

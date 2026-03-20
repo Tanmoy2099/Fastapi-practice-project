@@ -1,12 +1,12 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
+
 from app.api.v1.routes.routes import routes
 from app.core.config import settings
 from app.db.mongo import connect_db, close_db
-from app.db.redis import cache
+from app.db.redis import cache, token_store, permission_store
 from app.models.post import Post
-
-# Middlewares
+from app.models.user import User
 from app.middlewares.cors import add_cors
 from app.middlewares.rate_limiter import add_rate_limiter
 from app.middlewares.mongo_sanitizer import add_mongo_sanitizer
@@ -15,11 +15,17 @@ from app.middlewares.security_headers import add_security_headers
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await connect_db(document_models=[Post])
+    # ── Startup ───────────────────────────────────
+    await connect_db(document_models=[User, Post])
     await cache.connect()
+    await token_store.connect()
+    await permission_store.connect()
     yield
+    # ── Shutdown ──────────────────────────────────
     await close_db()
     await cache.close()
+    await token_store.close()
+    await permission_store.close()
 
 
 app = FastAPI(
@@ -28,11 +34,11 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# ── Middleware stack (applied bottom-up by Starlette) ─────────────────────────
-add_security_headers(app)   # outermost — wraps every response
-add_mongo_sanitizer(app)    # sanitize request bodies before they reach routes
-add_rate_limiter(app)       # rate limit after sanitization
-add_cors(app)               # innermost — CORS must be closest to the app
+# ── Middleware stack (Starlette applies bottom-up) ────────────────────────────
+add_security_headers(app)
+add_mongo_sanitizer(app)
+add_rate_limiter(app)
+add_cors(app)
 
 # ── Routes ────────────────────────────────────────────────────────────────────
 for route in routes:

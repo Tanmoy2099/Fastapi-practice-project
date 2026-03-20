@@ -1,5 +1,5 @@
-from pydantic_settings import BaseSettings
 from typing import List
+from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
@@ -11,8 +11,14 @@ class Settings(BaseSettings):
     # CORS
     cors_origins: List[str] = ["http://localhost:3000", "http://localhost:5173"]
 
-    # Rate limiting (slowapi format: "N/period" e.g. "100/minute")
+    # Rate limiting
     rate_limit_default: str = "100/minute"
+
+    # JWT
+    jwt_secret: str = "change-me-in-production"
+    jwt_algorithm: str = "HS256"
+    access_token_ttl: int = 900       # 15 minutes
+    refresh_token_ttl: int = 604800   # 7 days
 
     # MongoDB
     mongo_uri: str = "mongodb://localhost:27017"

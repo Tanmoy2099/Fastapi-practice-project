@@ -1,7 +1,9 @@
 from beanie import PydanticObjectId
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 
+from app.core.exceptions import UnprocessableEntityException, NotFoundException, ForbiddenException
 from app.core.dependencies import get_current_active_user, require_role
+from beanie.operators import In
 from app.db.redis import cache
 from app.models.post import Post
 from app.models.user import User
@@ -28,10 +30,10 @@ async def _get_post_or_404(post_id: str) -> Post:
     try:
         obj_id = PydanticObjectId(post_id)
     except Exception:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Invalid post ID")
+        raise UnprocessableEntityException("Invalid post ID")
     post = await Post.get(obj_id)
     if not post:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Post not found")
+        raise NotFoundException("Post not found")
     return post
 
 
@@ -50,7 +52,7 @@ async def get_feed(
         return []
 
     posts = await Post.find(
-        Post.author_id.in_(current_user.following),  # type: ignore[attr-defined]
+        In(Post.author_id, current_user.following),
         Post.published == True,
     ).sort(-Post.created_at).to_list()
 
@@ -94,7 +96,7 @@ async def update_post(
     post = await _get_post_or_404(post_id)
 
     if not post.is_owned_by(current_user.id) and not current_user.is_admin():
-        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Not your post")
+        raise ForbiddenException("Not your post")
 
     update_data = body.model_dump(exclude_none=True)
     for field, value in update_data.items():
@@ -114,6 +116,6 @@ async def delete_post(
     post = await _get_post_or_404(post_id)
 
     if not post.is_owned_by(current_user.id) and not current_user.is_admin():
-        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Not your post")
+        raise ForbiddenException("Not your post")
 
     await post.delete()

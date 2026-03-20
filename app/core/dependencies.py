@@ -1,6 +1,8 @@
 import jwt
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+
+from app.core.exceptions import UnauthorizedException, ForbiddenException
 
 from app.core.security import decode_access_token
 from app.db.redis import permission_store
@@ -17,9 +19,9 @@ async def _get_token_payload(
     try:
         return decode_access_token(credentials.credentials)
     except jwt.ExpiredSignatureError:
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Token expired")
+        raise UnauthorizedException("Token expired")
     except jwt.InvalidTokenError:
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+        raise UnauthorizedException("Invalid token")
 
 
 # ── Current user ─────────────────────────────────────────────────────────────
@@ -29,7 +31,7 @@ async def get_current_user(
 ) -> User:
     user = await User.get(payload["sub"])
     if not user:
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, detail="User not found")
+        raise UnauthorizedException("User not found")
     return user
 
 
@@ -37,7 +39,7 @@ async def get_current_active_user(
     current_user: User = Depends(get_current_user),
 ) -> User:
     if not current_user.is_active:
-        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Account is inactive")
+        raise ForbiddenException("Account is inactive")
     return current_user
 
 
@@ -65,10 +67,7 @@ def require_role(required_role: str):
             await permission_store.set(user_id, cached_role)
 
         if cached_role != required_role:
-            raise HTTPException(
-                status.HTTP_403_FORBIDDEN,
-                detail=f"Requires '{required_role}' role",
-            )
+            raise ForbiddenException(f"Requires '{required_role}' role")
         return current_user
 
     return _check

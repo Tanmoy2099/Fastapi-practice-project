@@ -1,22 +1,25 @@
 import secrets
 from datetime import datetime, timedelta, timezone
 
+import bcrypt
 import jwt
-from passlib.context import CryptContext
 
 from app.core.config import settings
-
-_pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 # ── Password ────────────────────────────────────────────────────────────────
 
 def hash_password(plain: str) -> str:
-    return _pwd_context.hash(plain)
+    pwd_bytes = plain.encode('utf-8')
+    salt = bcrypt.gensalt()
+    hashed = bcrypt.hashpw(pwd_bytes, salt)
+    return hashed.decode('utf-8')
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    return _pwd_context.verify(plain, hashed)
+    pwd_bytes = plain.encode('utf-8')
+    hashed_bytes = hashed.encode('utf-8')
+    return bcrypt.checkpw(pwd_bytes, hashed_bytes)
 
 
 # ── Access Token (JWT) ───────────────────────────────────────────────────────
@@ -49,9 +52,10 @@ def decode_access_token(token: str) -> dict:
 
 # ── Refresh Token (opaque) ───────────────────────────────────────────────────
 
-def create_refresh_token() -> str:
+def create_refresh_token(user_id: str) -> str:
     """
     Generate a cryptographically secure random refresh token.
     This is NOT a JWT — it is stored (hashed) in Redis for revocability.
     """
-    return secrets.token_urlsafe(64)
+    token_val = secrets.token_urlsafe(64)
+    return f"{user_id}::{token_val}"

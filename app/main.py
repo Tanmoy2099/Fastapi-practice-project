@@ -1,5 +1,7 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
+from fastapi.exceptions import RequestValidationError
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.api.v1.routes.routes import routes
 from app.core.config import settings
@@ -11,6 +13,13 @@ from app.middlewares.cors import add_cors
 from app.middlewares.rate_limiter import add_rate_limiter
 from app.middlewares.mongo_sanitizer import add_mongo_sanitizer
 from app.middlewares.security_headers import add_security_headers
+from app.core.exceptions import AppException
+from app.core.handlers import (
+    app_exception_handler,
+    validation_exception_handler,
+    http_exception_handler,
+    global_exception_handler,
+)
 
 
 @asynccontextmanager
@@ -33,6 +42,12 @@ app = FastAPI(
     version=settings.app_version,
     lifespan=lifespan,
 )
+
+# ── Exception Handlers ────────────────────────────────────────────────────────
+app.add_exception_handler(AppException, app_exception_handler)
+app.add_exception_handler(RequestValidationError, validation_exception_handler)
+app.add_exception_handler(StarletteHTTPException, http_exception_handler)
+app.add_exception_handler(Exception, global_exception_handler)
 
 # ── Middleware stack (Starlette applies bottom-up) ────────────────────────────
 add_security_headers(app)

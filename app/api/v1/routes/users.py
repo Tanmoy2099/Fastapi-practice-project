@@ -1,6 +1,7 @@
 from beanie import PydanticObjectId
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 
+from app.core.exceptions import UnprocessableEntityException, NotFoundException, BadRequestException, ConflictException
 from app.core.dependencies import get_current_active_user
 from app.models.user import User
 from app.schemas.user import UserResponse, UserProfile
@@ -31,10 +32,10 @@ async def _get_user_or_404(user_id: str) -> User:
     try:
         obj_id = PydanticObjectId(user_id)
     except Exception:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, detail="Invalid user ID")
+        raise UnprocessableEntityException("Invalid user ID")
     user = await User.get(obj_id)
     if not user:
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="User not found")
+        raise NotFoundException("User not found")
     return user
 
 
@@ -61,10 +62,10 @@ async def follow_user(
     target = await _get_user_or_404(user_id)
 
     if target.id == current_user.id:
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail="Cannot follow yourself")
+        raise BadRequestException("Cannot follow yourself")
 
     if current_user.follows(target.id):
-        raise HTTPException(status.HTTP_409_CONFLICT, detail="Already following this user")
+        raise ConflictException("Already following this user")
 
     current_user.following.append(target.id)
     await current_user.save()
@@ -78,7 +79,7 @@ async def unfollow_user(
     target = await _get_user_or_404(user_id)
 
     if not current_user.follows(target.id):
-        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Not following this user")
+        raise NotFoundException("Not following this user")
 
     current_user.following.remove(target.id)
     await current_user.save()

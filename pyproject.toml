@@ -1,0 +1,16 @@
+[project]
+name = "practice-project"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.14"
+dependencies = [
+    "beanie>=2.0.1",
+    "fastapi>=0.135.1",
+    "motor>=3.7.1",
+    "pydantic>=2.12.5",
+    "pydantic-settings>=2.13.1",
+    "redis[asyncio]>=7.3.0",
+    "slowapi>=0.1.9",
+    "uvicorn>=0.42.0",
+]

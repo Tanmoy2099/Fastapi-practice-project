@@ -117,6 +117,17 @@ async def create_post(
     return _to_response(post)
 
 
+# ── Read Single ───────────────────────────────────────────────────────────────
+
+@router.get("/{post_id}", response_model=PostResponse)
+async def get_post(
+    post_id: str,
+    current_user: User = Depends(get_current_active_user),
+) -> PostResponse:
+    post = await _get_post_or_404(post_id)
+    return _to_response(post)
+
+
 # ── Update ────────────────────────────────────────────────────────────────────
 
 @router.put("/{post_id}", response_model=PostResponse)

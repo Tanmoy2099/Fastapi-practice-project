@@ -6,6 +6,7 @@ def test_register_success(client: TestClient):
     res = client.post("/api/v1/auth/register", json=payload)
     assert res.status_code == 201
     assert "access_token" in res.json()
+    assert "refresh_token" in res.cookies  # Prove cookie is set natively
 
 
 def test_register_duplicate_email(client: TestClient):
@@ -24,6 +25,7 @@ def test_login_success(client: TestClient):
     res = client.post("/api/v1/auth/login", json={"email": "login@example.com", "password": "Password123!"})
     assert res.status_code == 200
     assert "access_token" in res.json()
+    assert "refresh_token" in res.cookies
 
 
 def test_login_invalid_password(client: TestClient):
@@ -37,26 +39,46 @@ def test_login_invalid_password(client: TestClient):
 def test_refresh_token(client: TestClient):
     payload = {"email": "ref@example.com", "username": "ref", "password": "Password123!"}
     res = client.post("/api/v1/auth/register", json=payload)
-    refresh_token = res.json()["refresh_token"]
+    
+    # Extract the cookie manually set by the register logic
+    refresh_cookie = res.cookies.get("refresh_token")
+    assert refresh_cookie is not None
 
-    refresh_res = client.post("/api/v1/auth/refresh", json={"refresh_token": refresh_token})
+    # TestClient normally persists cookies, but we explicitly set it to prove the flow
+    refresh_res = client.post("/api/v1/auth/refresh", cookies={"refresh_token": refresh_cookie})
     assert refresh_res.status_code == 200
     assert "access_token" in refresh_res.json()
-    assert refresh_res.json()["refresh_token"] != refresh_token
+    assert refresh_res.cookies.get("refresh_token") != refresh_cookie  # Prove rotation happened
+
+
+def test_logout(client: TestClient):
+    payload = {"email": "logout1@example.com", "username": "logout1", "password": "Password123!"}
+    res = client.post("/api/v1/auth/register", json=payload)
+    
+    access = res.json()["access_token"]
+    refresh = res.cookies.get("refresh_token")
+    
+    headers = {"Authorization": f"Bearer {access}"}
+    logout_res = client.post("/api/v1/auth/logout", headers=headers, cookies={"refresh_token": refresh})
+    assert logout_res.status_code == 204
+
+    # Using refresh token should now fail natively
+    refresh_res = client.post("/api/v1/auth/refresh", cookies={"refresh_token": refresh})
+    assert refresh_res.status_code == 401
 
 
 def test_logout_and_revoke_all(client: TestClient):
     payload = {"email": "logout@example.com", "username": "logout", "password": "Password123!"}
     res = client.post("/api/v1/auth/register", json=payload)
-    access, refresh = res.json()["access_token"], res.json()["refresh_token"]
     
-    # Logout all
+    access = res.json()["access_token"]
+    refresh = res.cookies.get("refresh_token")
+    
     headers = {"Authorization": f"Bearer {access}"}
     logout_res = client.post("/api/v1/auth/logout-all", headers=headers)
     assert logout_res.status_code == 204
 
-    # Using refresh token should now fail
-    refresh_res = client.post("/api/v1/auth/refresh", json={"refresh_token": refresh})
+    refresh_res = client.post("/api/v1/auth/refresh", cookies={"refresh_token": refresh})
     assert refresh_res.status_code == 401
 
 
@@ -65,16 +87,14 @@ def test_logout_and_revoke_all(client: TestClient):
 def test_register_invalid_email_format(client: TestClient):
     payload = {"email": "not-an-email", "username": "bademail", "password": "Password123!"}
     res = client.post("/api/v1/auth/register", json=payload)
-    assert res.status_code == 422  # Pydantic should catch this immediately
+    assert res.status_code == 422
 
 
 def test_login_unregistered_email(client: TestClient):
-    # Attempting to login to an account that mathematically does not exist
     res = client.post("/api/v1/auth/login", json={"email": "ghost@example.com", "password": "Password123!"})
     assert res.status_code == 401
 
 
 def test_invalid_refresh_token(client: TestClient):
-    # Providing total garbage to the refresh endpoint to ensure PyJWT decryption rejects it
-    res = client.post("/api/v1/auth/refresh", json={"refresh_token": "fake.jwt.token.data"})
+    res = client.post("/api/v1/auth/refresh", cookies={"refresh_token": "fake.jwt.token.data"})
     assert res.status_code == 401

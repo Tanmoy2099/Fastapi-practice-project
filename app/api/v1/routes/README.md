@@ -36,10 +36,11 @@ Wait, how does `main.py` know that `auth.py`, `users.py`, and `posts.py` exist? 
 This file is heavily guarded. It controls who is allowed into your application.
 - **Registration (`/register`)**: 
   When you POST JSON here, the code extracts your `body.password` plaintext string. It immediately passes it through `security.get_password_hash`. This transforms "my_password" into an ugly, unreadable 60-character scrambled string using Bcrypt. Only this scrambled string is saved into the MongoDB Database using `.insert()`. 
-- **Login (`/login`)**: 
-  Takes your email and looks you up in MongoDB natively (`await User.find_one()`). If you exist, it checks if the password matches the scrambled hash. If yes, it creates an encrypted string called a JSON Web Token (JWT). It saves your unique "Refresh" token securely into the **Redis Database** natively so it can remember you.
+- **Login (`/login`) & HttpOnly Cookies**: 
+  Takes your email and looks you up in MongoDB natively (`await User.find_one()`). If you exist, it checks if the password matches the scrambled hash. If yes, it creates an encrypted string called an Access Token (JSON Web Token), and a longer-lived **Refresh Token**.
+  *Security Upgrade:* Instead of giving the frontend the Refresh Token inside the JSON `body` (which makes you vulnerable to JavaScript XSS hacking), it uses a **`HttpOnly` Cookie**. This forces the Chrome/Firefox browser to securely hide the token in a vault where hackers cannot steal it, even if your frontend code is compromised! It saves your unique "Refresh" token securely into the **Redis Database** natively as the ultimate source of truth.
 - **Logout (`/logout-all`)**: 
-  Instantly tells Redis to permanently delete every trace of your authorization keys. Your current token dies immediately.
+  Instantly tells Redis to permanently delete every trace of your authorization keys, and commands the client's browser to execute `response.delete_cookie()`. Your current token dies immediately everywhere.
 
 ### 2. The People: `users.py`
 This file handles actions a user takes against *another* user's profile.
@@ -51,7 +52,7 @@ This file handles actions a user takes against *another* user's profile.
 ### 3. The Content: `posts.py`
 This file handles content creation securely.
 - **CRUD (Create, Read, Update, Delete)**: 
-  The `/posts` endpoints universally require `current_active_user`, locking strangers out entirely. When creating a post, it forces the author to be your exact ID natively.
+  The `/posts` endpoints universally require `current_active_user`, locking strangers out entirely. When creating a post, it forces the author to be your exact ID natively. You can natively fetch single documents sequentially via `GET /{post_id}`.
 - **The Engine (`/feed` & Aggregation Pipelines)**:
   This is the brilliant part. When you ask for your Feed, the code does not search all posts in the database. 
   Instead, it grabs your `following` array containing the exact IDs of the people you follow, and uses a **MongoDB Aggregation Pipeline**.

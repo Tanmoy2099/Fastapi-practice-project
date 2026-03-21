@@ -87,6 +87,29 @@ def test_get_my_posts(client: TestClient):
     assert len(res.json()) == 0
 
 
+def test_get_single_post(client: TestClient):
+    tokens, prof = create_user(client, 100)
+    headers = {"Authorization": f"Bearer {tokens['access_token']}"}
+    
+    # Create the post
+    post_res = client.post("/api/v1/posts/", json={"title": "Single", "content": "Content"}, headers=headers)
+    post_id = post_res.json()["id"]
+    
+    # Fetch it
+    get_res = client.get(f"/api/v1/posts/{post_id}", headers=headers)
+    assert get_res.status_code == 200
+    assert get_res.json()["title"] == "Single"
+    assert get_res.json()["content"] == "Content"
+
+
+def test_get_ghost_post(client: TestClient):
+    tokens, prof = create_user(client, 101)
+    headers = {"Authorization": f"Bearer {tokens['access_token']}"}
+    
+    get_res = client.get("/api/v1/posts/69be23691fb4d2a35eb612dd", headers=headers)
+    assert get_res.status_code == 404
+
+
 def test_update_ghost_post(client: TestClient):
     tokens, prof = create_user(client, 7)
     headers = {"Authorization": f"Bearer {tokens['access_token']}"}

@@ -1,0 +1,23 @@
+name: Backend E2E Tests
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Boot Databases via Docker Compose
+        run: docker compose up -d mongo redis
+
+      - name: Run Pytest Suite
+        run: docker compose run --rm -e PYTHONPATH=/app api pytest

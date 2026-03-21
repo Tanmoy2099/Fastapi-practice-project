@@ -1,6 +1,9 @@
 from typing import List, Optional
+
 from beanie import PydanticObjectId
+
 from app.models.post import Post
+
 
 class PostRepository:
     """Encapsulates all database operations for the Post model."""
@@ -25,25 +28,16 @@ class PostRepository:
     async def get_feed(self, following_ids: List[PydanticObjectId]) -> List[dict]:
         """Returns raw dictionaries from aggregation pipeline to bypass Beanie limitations."""
         pipeline = [
-            {
-                "$match": {
-                    "author_id": {"$in": following_ids},
-                    "published": True
-                }
-            },
-            {
-                "$sort": {"created_at": -1}
-            }
+            {"$match": {"author_id": {"$in": following_ids}, "published": True}},
+            {"$sort": {"created_at": -1}},
         ]
         cursor = Post.get_pymongo_collection().aggregate(pipeline)
         return await cursor.to_list(length=None)
 
     async def get_by_author(self, author_id: PydanticObjectId) -> List[dict]:
-        pipeline = [
-            {"$match": {"author_id": author_id}},
-            {"$sort": {"created_at": -1}}
-        ]
+        pipeline = [{"$match": {"author_id": author_id}}, {"$sort": {"created_at": -1}}]
         cursor = Post.get_pymongo_collection().aggregate(pipeline)
         return await cursor.to_list(length=None)
+
 
 post_repo = PostRepository()

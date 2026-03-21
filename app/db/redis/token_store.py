@@ -1,6 +1,7 @@
 import hashlib
-from app.db.redis.base import BaseRedisStore
+
 from app.core.config import settings
+from app.db.redis.base import BaseRedisStore
 
 
 class TokenStore(BaseRedisStore):

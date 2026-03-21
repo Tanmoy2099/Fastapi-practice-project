@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, status
 from app.core.dependencies import get_current_active_user
 from app.models.post import Post
 from app.models.user import User
-from app.schemas.post import PostCreate, PostUpdate, PostResponse
+from app.schemas.post import PostCreate, PostResponse, PostUpdate
 from app.services.post_service import post_service
 
 router = APIRouter(prefix="/posts", tags=["Posts"])
@@ -23,6 +23,7 @@ def _to_response(post: Post) -> PostResponse:
 
 # ── Feed (posts from followed users) ──────────────────────────────────────────
 
+
 @router.get("/feed", response_model=list[PostResponse])
 async def get_feed(
     current_user: User = Depends(get_current_active_user),
@@ -32,6 +33,7 @@ async def get_feed(
 
 # ── Own posts ─────────────────────────────────────────────────────────────────
 
+
 @router.get("/", response_model=list[PostResponse])
 async def get_my_posts(
     current_user: User = Depends(get_current_active_user),
@@ -40,6 +42,7 @@ async def get_my_posts(
 
 
 # ── Create ────────────────────────────────────────────────────────────────────
+
 
 @router.post("/", response_model=PostResponse, status_code=status.HTTP_201_CREATED)
 async def create_post(
@@ -52,6 +55,7 @@ async def create_post(
 
 # ── Read Single ───────────────────────────────────────────────────────────────
 
+
 @router.get("/{post_id}", response_model=PostResponse)
 async def get_post(
     post_id: str,
@@ -62,6 +66,7 @@ async def get_post(
 
 
 # ── Update ────────────────────────────────────────────────────────────────────
+
 
 @router.put("/{post_id}", response_model=PostResponse)
 async def update_post(
@@ -74,6 +79,7 @@ async def update_post(
 
 
 # ── Delete ────────────────────────────────────────────────────────────────────
+
 
 @router.delete("/{post_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_post(

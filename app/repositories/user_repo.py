@@ -1,6 +1,9 @@
 from typing import List, Optional
+
 from beanie import PydanticObjectId
+
 from app.models.user import User
+
 
 class UserRepository:
     """Encapsulates all database operations for the User model."""
@@ -30,5 +33,6 @@ class UserRepository:
 
     async def get_followers(self, user_id: PydanticObjectId) -> List[User]:
         return await User.find({"following": user_id}).to_list()
+
 
 user_repo = UserRepository()

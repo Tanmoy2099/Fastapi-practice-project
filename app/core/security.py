@@ -6,23 +6,24 @@ import jwt
 
 from app.core.config import settings
 
-
 # ── Password ────────────────────────────────────────────────────────────────
 
+
 def hash_password(plain: str) -> str:
-    pwd_bytes = plain.encode('utf-8')
+    pwd_bytes = plain.encode("utf-8")
     salt = bcrypt.gensalt()
     hashed = bcrypt.hashpw(pwd_bytes, salt)
-    return hashed.decode('utf-8')
+    return hashed.decode("utf-8")
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    pwd_bytes = plain.encode('utf-8')
-    hashed_bytes = hashed.encode('utf-8')
+    pwd_bytes = plain.encode("utf-8")
+    hashed_bytes = hashed.encode("utf-8")
     return bcrypt.checkpw(pwd_bytes, hashed_bytes)
 
 
 # ── Access Token (JWT) ───────────────────────────────────────────────────────
+
 
 def create_access_token(user_id: str, role: str) -> str:
     expire = datetime.now(timezone.utc) + timedelta(seconds=settings.access_token_ttl)
@@ -51,6 +52,7 @@ def decode_access_token(token: str) -> dict:
 
 
 # ── Refresh Token (opaque) ───────────────────────────────────────────────────
+
 
 def create_refresh_token(user_id: str) -> str:
     """

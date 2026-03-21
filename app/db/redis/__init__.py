@@ -1,6 +1,6 @@
-from app.db.redis.cache import cache, CacheStore
-from app.db.redis.token_store import token_store, TokenStore
-from app.db.redis.permission_store import permission_store, PermissionStore
+from app.db.redis.cache import CacheStore, cache
+from app.db.redis.permission_store import PermissionStore, permission_store
+from app.db.redis.token_store import TokenStore, token_store
 
 __all__ = [
     "cache",

@@ -1,5 +1,5 @@
-from app.db.redis.base import BaseRedisStore
 from app.core.config import settings
+from app.db.redis.base import BaseRedisStore
 
 _PERMISSION_TTL = 600  # 10 minutes
 

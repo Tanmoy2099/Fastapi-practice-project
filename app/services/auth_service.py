@@ -1,12 +1,18 @@
 from typing import Tuple
-from app.core.exceptions import ConflictException, UnauthorizedException, ForbiddenException
-from app.core.security import hash_password, verify_password, create_access_token, create_refresh_token
+
+from app.core.exceptions import ConflictException, ForbiddenException, UnauthorizedException
+from app.core.security import (
+    create_access_token,
+    create_refresh_token,
+    hash_password,
+    verify_password,
+)
 from app.db.redis import token_store
 from app.models.user import User
 from app.repositories.user_repo import user_repo
 
-class AuthService:
 
+class AuthService:
     async def register(self, email: str, username: str, password: str) -> Tuple[str, str]:
         if await user_repo.find_by_email(email):
             raise ConflictException("Email already registered")
@@ -68,5 +74,6 @@ class AuthService:
 
     async def logout_all(self, user_id: str) -> None:
         await token_store.revoke_all(user_id)
+
 
 auth_service = AuthService()

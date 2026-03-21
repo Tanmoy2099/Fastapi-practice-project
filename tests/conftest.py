@@ -1,9 +1,10 @@
 import os
+
+import mongomock_motor
 import pytest
 import pytest_asyncio
-from fastapi.testclient import TestClient
-import mongomock_motor
 from fakeredis import FakeAsyncRedis
+from fastapi.testclient import TestClient
 
 # Inject test database name strictly for fallback isolation
 os.environ["MONGO_DB_NAME"] = "practice_test_db"
@@ -17,21 +18,26 @@ from app.db.redis.base import BaseRedisStore
 fake_redis = FakeAsyncRedis(decode_responses=True)
 mock_mongo_client = mongomock_motor.AsyncMongoMockClient()
 
+
 # Intercept Mongo connection natively
 async def fake_mongo_connect(document_models):
     from beanie import init_beanie
+
     from app.core.config import settings
+
     mongo._client = mock_mongo_client
     await init_beanie(
-        database=mock_mongo_client[settings.mongo_db_name],
-        document_models=document_models
+        database=mock_mongo_client[settings.mongo_db_name], document_models=document_models
     )
+
+
 mongo.connect_db = fake_mongo_connect
 
 
 # Intercept ALL Redis instances globally via the Base Class
 async def fake_base_redis_connect(self):
     self._client = fake_redis
+
 
 BaseRedisStore.connect = fake_base_redis_connect
 
@@ -44,19 +50,20 @@ from app.main import app
 def client():
     """
     Initializing TestClient automatically triggers the ASGI lifespan.
-    Because we swapped the Python pointers above, FastAPI unknowingly boots 
+    Because we swapped the Python pointers above, FastAPI unknowingly boots
     into our RAM simulations identically to real production bindings.
     """
     with TestClient(app) as c:
         yield c
+
 
 @pytest_asyncio.fixture(autouse=True)
 async def clear_db(client):
     """
     Clears RAM MongoDB and FakeRedis efficiently before each E2E test.
     """
-    from app.models.user import User
     from app.models.post import Post
+    from app.models.user import User
 
     # Fast drop using underlying in-memory mock collections
     try:
@@ -67,5 +74,5 @@ async def clear_db(client):
 
     # Flush FakeRedis instantly
     await fake_redis.flushdb()
-    
+
     yield

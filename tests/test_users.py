@@ -1,11 +1,13 @@
-import pytest
 from fastapi.testclient import TestClient
+
 
 def create_user(client: TestClient, n: int):
     payload = {"email": f"user{n}@example.com", "username": f"user{n}", "password": "Password123!"}
     res = client.post("/api/v1/auth/register", json=payload)
     tokens = res.json()
-    prof = client.get("/api/v1/users/me", headers={"Authorization": f"Bearer {tokens['access_token']}"})
+    prof = client.get(
+        "/api/v1/users/me", headers={"Authorization": f"Bearer {tokens['access_token']}"}
+    )
     return tokens, prof.json()
 
 
@@ -24,7 +26,7 @@ def test_follow_and_unfollow(client: TestClient):
     res = client.post(f"/api/v1/users/{prof_B['id']}/follow", headers=headers_A)
     assert res.status_code == 204
 
-    # Duplicate Follow 
+    # Duplicate Follow
     res = client.post(f"/api/v1/users/{prof_B['id']}/follow", headers=headers_A)
     assert res.status_code == 409
 
@@ -44,7 +46,9 @@ def test_follow_and_unfollow(client: TestClient):
     res = client.get(f"/api/v1/users/{prof_B['id']}/followers")
     assert not any(u["id"] == prof_A["id"] for u in res.json())
 
+
 # ── Negative Testing Edge Cases ───────────────────────────────────────────────
+
 
 def test_unauthorized_access(client: TestClient):
     # Attempt to hit 'me' without a Bearer Token Header
@@ -55,10 +59,9 @@ def test_unauthorized_access(client: TestClient):
 def test_follow_ghost_user(client: TestClient):
     tokens, prof = create_user(client, 99)
     headers = {"Authorization": f"Bearer {tokens['access_token']}"}
-    
+
     # Generate a realistic fake MongoDB ObjectID
     fake_mongo_id = "5f50f2fb4a949f2b3e8b4567"
-    
+
     res = client.post(f"/api/v1/users/{fake_mongo_id}/follow", headers=headers)
     assert res.status_code == 404
-

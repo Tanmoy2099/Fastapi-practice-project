@@ -1,5 +1,4 @@
 import logging
-from typing import Any
 
 from fastapi import Request, status
 from fastapi.exceptions import RequestValidationError
@@ -54,9 +53,7 @@ async def validation_exception_handler(
     )
 
 
-async def http_exception_handler(
-    request: Request, exc: StarletteHTTPException
-) -> JSONResponse:
+async def http_exception_handler(request: Request, exc: StarletteHTTPException) -> JSONResponse:
     """
     Catches default Starlette/FastAPI errors (e.g., 404 URL Not Found, 405 Method Not Allowed)
     and maps them to our schema.

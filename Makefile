@@ -23,3 +23,12 @@ install:
 
 start:
 	uv run uvicorn app.main:app --reload
+
+# ── Code Quality ────────────────────────────
+lint:
+	uv run ruff check .
+	uv run ruff format --check .
+
+format:
+	uv run ruff check --fix .
+	uv run ruff format .

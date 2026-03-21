@@ -1,10 +1,10 @@
-import re
 import json
+import re
 from typing import Any
+
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import JSONResponse
-
 
 # Patterns that indicate a NoSQL injection attempt
 _DANGEROUS_KEYS = re.compile(r"^\$")

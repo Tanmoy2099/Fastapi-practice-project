@@ -1,5 +1,6 @@
-from motor.motor_asyncio import AsyncIOMotorClient
 from beanie import init_beanie
+from motor.motor_asyncio import AsyncIOMotorClient
+
 from app.core.config import settings
 
 _client: AsyncIOMotorClient | None = None

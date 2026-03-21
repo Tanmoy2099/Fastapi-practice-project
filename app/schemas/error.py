@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Optional
+from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict
 
@@ -27,6 +27,7 @@ class ErrorResponse(BaseModel):
       }
     }
     """
+
     error: ErrorContent
 
     model_config = ConfigDict(

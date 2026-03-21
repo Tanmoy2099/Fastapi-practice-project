@@ -1,10 +1,13 @@
 import time
+
 import requests
 
 BASE_URL = "http://localhost:8000/api/v1"
 
+
 def print_step(msg):
-    print(f"\\n{'='*50}\\n[STEP]: {msg}\\n{'='*50}")
+    print(f"\\n{'=' * 50}\\n[STEP]: {msg}\\n{'=' * 50}")
+
 
 def run_tests():
     session = requests.Session()
@@ -13,13 +16,9 @@ def run_tests():
     user_a = {
         "email": f"alice_{ts}@example.com",
         "username": f"alice_{ts}",
-        "password": "Password123!"
+        "password": "Password123!",
     }
-    user_b = {
-        "email": f"bob_{ts}@example.com",
-        "username": f"bob_{ts}",
-        "password": "Password123!"
-    }
+    user_b = {"email": f"bob_{ts}@example.com", "username": f"bob_{ts}", "password": "Password123!"}
 
     # 1. Register User A
     print_step("Register User A")
@@ -33,8 +32,10 @@ def run_tests():
     print_step("Register & Login User B")
     res = session.post(f"{BASE_URL}/auth/register", json=user_b)
     assert res.status_code == 201, res.text
-    
-    res = session.post(f"{BASE_URL}/auth/login", json={"email": user_b["email"], "password": user_b["password"]})
+
+    res = session.post(
+        f"{BASE_URL}/auth/login", json={"email": user_b["email"], "password": user_b["password"]}
+    )
     assert res.status_code == 200, res.text
     tokens_b = res.json()
     print("User B logged in.")
@@ -63,7 +64,7 @@ def run_tests():
     res = session.get(f"{BASE_URL}/users/{id_a}/following")
     assert res.status_code == 200
     assert any(u["id"] == id_b for u in res.json()), "User B should be in A's following list"
-    
+
     res = session.get(f"{BASE_URL}/users/{id_b}/followers")
     assert res.status_code == 200
     assert any(u["id"] == id_a for u in res.json()), "User A should be in B's followers list"
@@ -75,7 +76,7 @@ def run_tests():
     res = session.post(f"{BASE_URL}/posts/", json=post_payload, headers=headers_b)
     assert res.status_code == 201, res.text
     post_id = res.json()["id"]
-    
+
     # User B Updates Post to published
     res = session.put(f"{BASE_URL}/posts/{post_id}", json={"published": True}, headers=headers_b)
     assert res.status_code == 200, res.text
@@ -96,7 +97,7 @@ def run_tests():
     assert res.status_code in (200, 204), f"Failed unfollow: {res.status_code} {res.text}"
 
     # Feed should be empty or at least not contain new posts, but let's test refresh token instead
-    
+
     # 8. Refresh Token
     print_step("Refresh User A's Token")
     rt = tokens_a["refresh_token"]
@@ -112,13 +113,16 @@ def run_tests():
     new_headers_a = {"Authorization": f"Bearer {new_tokens_a['access_token']}"}
     res = session.post(f"{BASE_URL}/auth/logout-all", headers=new_headers_a)
     assert res.status_code in (200, 204), f"Failed logout-all: {res.status_code} {res.text}"
-    
+
     # Verify strict refresh denial
-    res = session.post(f"{BASE_URL}/auth/refresh", json={"refresh_token": new_tokens_a["refresh_token"]})
+    res = session.post(
+        f"{BASE_URL}/auth/refresh", json={"refresh_token": new_tokens_a["refresh_token"]}
+    )
     assert res.status_code == 401, "Expected 401 after logout-all"
     print("Logout-all successfully invalidated refresh token.")
 
     print_step("ALL E2E TESTS PASSED SUCCESSFULLY! ✅")
+
 
 if __name__ == "__main__":
     run_tests()

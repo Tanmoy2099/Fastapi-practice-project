@@ -1,9 +1,8 @@
 import jwt
 from fastapi import Depends
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from app.core.exceptions import UnauthorizedException, ForbiddenException
-
+from app.core.exceptions import ForbiddenException, UnauthorizedException
 from app.core.security import decode_access_token
 from app.db.redis import permission_store
 from app.models.user import User
@@ -12,6 +11,7 @@ _bearer = HTTPBearer()
 
 
 # ── Token extraction ─────────────────────────────────────────────────────────
+
 
 async def _get_token_payload(
     credentials: HTTPAuthorizationCredentials = Depends(_bearer),
@@ -25,6 +25,7 @@ async def _get_token_payload(
 
 
 # ── Current user ─────────────────────────────────────────────────────────────
+
 
 async def get_current_user(
     payload: dict = Depends(_get_token_payload),
@@ -45,6 +46,7 @@ async def get_current_active_user(
 
 # ── Role-based access control ─────────────────────────────────────────────────
 
+
 def require_role(required_role: str):
     """
     Dependency factory for role-based access control.
@@ -53,6 +55,7 @@ def require_role(required_role: str):
     Usage:
         @router.delete("/{id}", dependencies=[Depends(require_role("admin"))])
     """
+
     async def _check(
         payload: dict = Depends(_get_token_payload),
         current_user: User = Depends(get_current_active_user),

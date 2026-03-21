@@ -18,6 +18,7 @@ class UserResponse(BaseModel):
 
 class UserProfile(BaseModel):
     """Public profile — no email exposed."""
+
     id: str
     username: str
     following_count: int

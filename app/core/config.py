@@ -1,4 +1,5 @@
 from typing import List
+
 from pydantic_settings import BaseSettings
 
 
@@ -17,8 +18,8 @@ class Settings(BaseSettings):
     # JWT
     jwt_secret: str = "change-me-in-production"
     jwt_algorithm: str = "HS256"
-    access_token_ttl: int = 900       # 15 minutes
-    refresh_token_ttl: int = 604800   # 7 days
+    access_token_ttl: int = 900  # 15 minutes
+    refresh_token_ttl: int = 604800  # 7 days
 
     # MongoDB
     mongo_uri: str = "mongodb://localhost:27017"

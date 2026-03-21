@@ -14,8 +14,10 @@ for _file in sorted(_routes_dir.glob("*.py")):
         continue
     _module = importlib.import_module(f"{_package}.{_file.stem}")
     if hasattr(_module, "router"):
-        routes.append({
-            "router": _module.router,
-            "prefix": PREFIX,
-            "tags": [_file.stem.capitalize()],
-        })
+        routes.append(
+            {
+                "router": _module.router,
+                "prefix": PREFIX,
+                "tags": [_file.stem.capitalize()],
+            }
+        )

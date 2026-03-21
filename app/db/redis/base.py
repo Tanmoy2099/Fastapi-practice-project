@@ -1,4 +1,5 @@
 import redis.asyncio as aioredis
+
 from app.core.config import settings
 
 
@@ -29,7 +30,5 @@ class BaseRedisStore:
     @property
     def client(self) -> aioredis.Redis:
         if self._client is None:
-            raise RuntimeError(
-                f"{self.__class__.__name__} is not connected. Call connect() first."
-            )
+            raise RuntimeError(f"{self.__class__.__name__} is not connected. Call connect() first.")
         return self._client

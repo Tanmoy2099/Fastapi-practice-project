@@ -1,4 +1,5 @@
-from typing import Any, Dict, Optional
+from typing import Any, Optional
+
 from fastapi import status
 
 
@@ -73,9 +74,7 @@ class ConflictException(AppException):
 
 
 class UnprocessableEntityException(AppException):
-    def __init__(
-        self, message: str = "Unprocessable Entity", details: Optional[Any] = None
-    ):
+    def __init__(self, message: str = "Unprocessable Entity", details: Optional[Any] = None):
         super().__init__(
             message=message,
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,

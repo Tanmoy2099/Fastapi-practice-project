@@ -1,23 +1,22 @@
 from datetime import datetime
-from typing import Optional
-from beanie import Document
+
+from beanie import Document, PydanticObjectId
 from pydantic import EmailStr, Field
-from beanie import PydanticObjectId
 
 
 class User(Document):
     email: EmailStr
     username: str
     hashed_password: str
-    role: str = "user"                          # "user" | "admin"
-    following: list[PydanticObjectId] = []      # user IDs this user follows
+    role: str = "user"  # "user" | "admin"
+    following: list[PydanticObjectId] = []  # user IDs this user follows
     is_active: bool = True
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
     class Settings:
         name = "users"
         indexes = [
-            "email",      # unique enforced at app layer with find_one checks
+            "email",  # unique enforced at app layer with find_one checks
             "username",
         ]
 

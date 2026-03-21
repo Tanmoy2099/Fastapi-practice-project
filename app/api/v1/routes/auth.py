@@ -1,5 +1,6 @@
 from typing import Optional
-from fastapi import APIRouter, status, Depends, Response, Cookie
+
+from fastapi import APIRouter, Cookie, Depends, Response, status
 
 from app.core.config import settings
 from app.core.dependencies import get_current_active_user
@@ -42,10 +43,10 @@ async def login(body: LoginRequest, response: Response) -> TokenResponse:
 
 @router.post("/refresh", response_model=TokenResponse)
 async def refresh_token(
-    response: Response, 
-    refresh_token: Optional[str] = Cookie(None)
+    response: Response, refresh_token: Optional[str] = Cookie(None)
 ) -> TokenResponse:
     from app.core.exceptions import UnauthorizedException
+
     if not refresh_token:
         raise UnauthorizedException("Refresh token missing")
 

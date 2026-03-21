@@ -1,0 +1,9 @@
+repos:
+  - repo: local
+    hooks:
+      - id: pytest-docker
+        name: Native Docker Pytest Enforcement
+        entry: bash -c 'docker compose run --rm -e PYTHONPATH=/app api pytest'
+        language: system
+        pass_filenames: false
+        stages: [push]

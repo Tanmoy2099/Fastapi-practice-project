@@ -164,26 +164,44 @@ This globally commands the automated testing robots to forcefully sync their asy
 
 ---
 
-## 🛠️ 6. Getting Started & Running the Tests
+## 🛠️ 6. Getting Started & Running the Code
 
-**1. Boot the Ecosystem Databases:**
+The entire project is deeply integrated with a universal **Makefile**. You no longer have to memorize massive Docker or UV commands.
+
+**1. Clone the project and install all dependencies & security hooks:**
 ```bash
-docker compose up -d
+make install
 ```
 
-**2. Synchronize your Python variables:**
+**2. Boot the Ecosystem (MongoDB, Redis, and FastAPI Docker Engine):**
 ```bash
-uv sync
+make up
 ```
+*(To view the live traffic logs streaming natively, simply run `make logs`!)*
 
-**3. Launch the Application!**
+**3. (Optional) Launch the Application outside Docker (Bare Metal):**
 ```bash
-uv run uvicorn app.main:app --reload
+make start
 ```
-Go to **http://localhost:8000/docs** to interact securely dynamically organically mathematically identically with your live API!
+Go to **http://localhost:8000/docs** to interact securely with your live API!
 
 ### Running the End-to-End TestClient Suite
 The backend is 100% covered by Pytest configurations explicitly overriding environmental databases.
 ```bash
-docker compose run --rm -e PYTHONPATH=/app api pytest
+make test
 ```
+
+---
+
+## 🛡️ Team Architecture: The Two-Tier Security Gate
+To ensure absolutely no broken code is ever pushed to the main Github branch by any developer on the team, we enforce a Two-Tier testing architecture.
+
+### Tier 1: Local Pre-Commit Hook (Convenience)
+When a new coworker clones this project (on Mac, Windows, or Linux), they bind their local `git push` command to the testing suite using our universal `Makefile` script exactly identically to `npm install`:
+```bash
+make install
+```
+
+### Tier 2: GitHub Actions CI/CD (The Fortress)
+If a developer skips the instructions above, or explicitly forces a push using `git push --no-verify`, their broken code will reach GitHub. 
+However, it cannot affect the `main` branch! Our `.github/workflows/test.yml` pipeline automatically intercepts every Pull Request. GitHub spins up a cloud server, boots Docker, and runs your Pytests. If the tests fail, GitHub physically grays-out the "Merge Pull Request" button, making it impossible for bad code to infect the codebase!

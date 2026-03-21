@@ -5,6 +5,7 @@ import bcrypt
 import jwt
 
 from app.core.config import settings
+from app.models.user import UserRole
 
 # ── Password ────────────────────────────────────────────────────────────────
 
@@ -25,11 +26,11 @@ def verify_password(plain: str, hashed: str) -> bool:
 # ── Access Token (JWT) ───────────────────────────────────────────────────────
 
 
-def create_access_token(user_id: str, role: str) -> str:
+def create_access_token(user_id: str, role: UserRole) -> str:
     expire = datetime.now(timezone.utc) + timedelta(seconds=settings.access_token_ttl)
     payload = {
         "sub": user_id,
-        "role": role,
+        "role": role.value,
         "exp": expire,
         "type": "access",
     }

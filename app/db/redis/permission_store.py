@@ -1,5 +1,6 @@
 from app.core.config import settings
 from app.db.redis.base import BaseRedisStore
+from app.models.user import UserRole
 
 _PERMISSION_TTL = 600  # 10 minutes
 
@@ -25,8 +26,9 @@ class PermissionStore(BaseRedisStore):
     def _key(user_id: str) -> str:
         return f"perm:{user_id}"
 
-    async def set(self, user_id: str, role: str) -> None:
-        await self.client.set(self._key(user_id), role, ex=_PERMISSION_TTL)
+    async def set(self, user_id: str, role: "str | UserRole") -> None:
+        role_val = role.value if hasattr(role, "value") else role
+        await self.client.set(self._key(user_id), role_val, ex=_PERMISSION_TTL)
 
     async def get(self, user_id: str) -> str | None:
         return await self.client.get(self._key(user_id))

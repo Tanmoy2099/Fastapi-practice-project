@@ -1,5 +1,7 @@
 from pydantic import BaseModel, EmailStr
 
+from app.models.user import UserRole
+
 
 class UserCreate(BaseModel):
     email: EmailStr
@@ -11,7 +13,7 @@ class UserResponse(BaseModel):
     id: str
     email: str
     username: str
-    role: str
+    role: UserRole
     following_count: int
     is_active: bool
 

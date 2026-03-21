@@ -5,7 +5,7 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from app.core.exceptions import ForbiddenException, UnauthorizedException
 from app.core.security import decode_access_token
 from app.db.redis import permission_store
-from app.models.user import User
+from app.models.user import User, UserRole
 
 _bearer = HTTPBearer()
 
@@ -47,13 +47,14 @@ async def get_current_active_user(
 # ── Role-based access control ─────────────────────────────────────────────────
 
 
-def require_role(required_role: str):
+def require_role(required_role: UserRole):
     """
     Dependency factory for role-based access control.
     Checks PermissionStore (Redis) first, falls back to DB on cache miss.
 
     Usage:
-        @router.delete("/{id}", dependencies=[Depends(require_role("admin"))])
+        from app.models.user import UserRole
+        @router.delete("/{id}", dependencies=[Depends(require_role(UserRole.ADMIN))])
     """
 
     async def _check(
@@ -69,8 +70,8 @@ def require_role(required_role: str):
             cached_role = current_user.role
             await permission_store.set(user_id, cached_role)
 
-        if cached_role != required_role:
-            raise ForbiddenException(f"Requires '{required_role}' role")
+        if cached_role != required_role.value:
+            raise ForbiddenException(f"Requires '{required_role.value}' role")
         return current_user
 
     return _check

@@ -18,10 +18,10 @@ async def _get_token_payload(
 ) -> dict:
     try:
         return decode_access_token(credentials.credentials)
-    except jwt.ExpiredSignatureError:
-        raise UnauthorizedException("Token expired")
-    except jwt.InvalidTokenError:
-        raise UnauthorizedException("Invalid token")
+    except jwt.ExpiredSignatureError as e:
+        raise UnauthorizedException("Token expired") from e
+    except jwt.InvalidTokenError as e:
+        raise UnauthorizedException("Invalid token") from e
 
 
 # ── Current user ─────────────────────────────────────────────────────────────

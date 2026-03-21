@@ -42,7 +42,7 @@ async def fake_base_redis_connect(self):
 BaseRedisStore.connect = fake_base_redis_connect
 
 # Now aggressively import the application map
-from app.main import app
+from app.main import app  # noqa: E402
 
 
 # ── 2. Test Execution Engine ──────────────────────────────────────────────────

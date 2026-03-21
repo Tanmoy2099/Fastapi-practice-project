@@ -45,10 +45,10 @@ class PostService:
 
         try:
             author_obj_id = PydanticObjectId(author_id)
-        except Exception:
+        except Exception as e:
             from app.core.exceptions import UnprocessableEntityException
 
-            raise UnprocessableEntityException("Invalid user ID")
+            raise UnprocessableEntityException("Invalid user ID") from e
 
         docs = await post_repo.get_by_author(author_obj_id)
         return [self._format_raw_doc(doc) for doc in docs]

@@ -50,8 +50,8 @@ class AuthService:
     async def refresh(self, refresh_token: str) -> Tuple[str, str]:
         try:
             user_id, _ = refresh_token.split("::", 1)
-        except ValueError:
-            raise UnauthorizedException("Invalid refresh token format")
+        except ValueError as e:
+            raise UnauthorizedException("Invalid refresh token format") from e
 
         if not await token_store.is_valid(user_id, refresh_token):
             raise UnauthorizedException("Invalid or expired refresh token")

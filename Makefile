@@ -18,7 +18,7 @@ test:
 	docker compose run --rm -e PYTHONPATH=/app api pytest -W ignore
 
 install:
-	uv sync
+	uv sync --frozen --no-install-project
 	uv run pre-commit install -t pre-push
 
 start:

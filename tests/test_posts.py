@@ -73,3 +73,35 @@ def test_post_feed(client: TestClient):
     feed = res.json()
     assert len(feed) > 0
     assert any(p["id"] == post_id for p in feed)
+
+
+# ── Negative Testing Edge Cases ───────────────────────────────────────────────
+
+def test_get_my_posts(client: TestClient):
+    tokens, prof = create_user(client, 6)
+    headers = {"Authorization": f"Bearer {tokens['access_token']}"}
+
+    # Verify endpoint is entirely empty initially
+    res = client.get("/api/v1/posts/", headers=headers)
+    assert res.status_code == 200
+    assert len(res.json()) == 0
+
+
+def test_update_ghost_post(client: TestClient):
+    tokens, prof = create_user(client, 7)
+    headers = {"Authorization": f"Bearer {tokens['access_token']}"}
+
+    # Generate impossible MongoDB ID string
+    fake_id = "5f50f2fb4a949f2b3e8b4567"
+    
+    res = client.put(f"/api/v1/posts/{fake_id}", json={"published": True}, headers=headers)
+    assert res.status_code == 404
+
+
+def test_create_invalid_post(client: TestClient):
+    tokens, prof = create_user(client, 8)
+    headers = {"Authorization": f"Bearer {tokens['access_token']}"}
+
+    # Violate exact Pydantic schema (missing Content & Title fields)
+    res = client.post("/api/v1/posts/", json={"invalid_field": "hacking"}, headers=headers)
+    assert res.status_code == 422

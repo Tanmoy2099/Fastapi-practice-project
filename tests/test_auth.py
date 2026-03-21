@@ -58,3 +58,23 @@ def test_logout_and_revoke_all(client: TestClient):
     # Using refresh token should now fail
     refresh_res = client.post("/api/v1/auth/refresh", json={"refresh_token": refresh})
     assert refresh_res.status_code == 401
+
+
+# ── Negative Testing Edge Cases ───────────────────────────────────────────────
+
+def test_register_invalid_email_format(client: TestClient):
+    payload = {"email": "not-an-email", "username": "bademail", "password": "Password123!"}
+    res = client.post("/api/v1/auth/register", json=payload)
+    assert res.status_code == 422  # Pydantic should catch this immediately
+
+
+def test_login_unregistered_email(client: TestClient):
+    # Attempting to login to an account that mathematically does not exist
+    res = client.post("/api/v1/auth/login", json={"email": "ghost@example.com", "password": "Password123!"})
+    assert res.status_code == 401
+
+
+def test_invalid_refresh_token(client: TestClient):
+    # Providing total garbage to the refresh endpoint to ensure PyJWT decryption rejects it
+    res = client.post("/api/v1/auth/refresh", json={"refresh_token": "fake.jwt.token.data"})
+    assert res.status_code == 401

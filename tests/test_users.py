@@ -43,3 +43,22 @@ def test_follow_and_unfollow(client: TestClient):
     # Ensure followers list is empty
     res = client.get(f"/api/v1/users/{prof_B['id']}/followers")
     assert not any(u["id"] == prof_A["id"] for u in res.json())
+
+# ── Negative Testing Edge Cases ───────────────────────────────────────────────
+
+def test_unauthorized_access(client: TestClient):
+    # Attempt to hit 'me' without a Bearer Token Header
+    res = client.get("/api/v1/users/me")
+    assert res.status_code == 401
+
+
+def test_follow_ghost_user(client: TestClient):
+    tokens, prof = create_user(client, 99)
+    headers = {"Authorization": f"Bearer {tokens['access_token']}"}
+    
+    # Generate a realistic fake MongoDB ObjectID
+    fake_mongo_id = "5f50f2fb4a949f2b3e8b4567"
+    
+    res = client.post(f"/api/v1/users/{fake_mongo_id}/follow", headers=headers)
+    assert res.status_code == 404
+

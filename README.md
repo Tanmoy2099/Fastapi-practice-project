@@ -26,13 +26,16 @@ graph TD
     Middleware --> API[FastAPI: app/api/routes]
     
     API -->|Validate Input| Schemas(Pydantic Schemas)
-    Schemas --> Core[Core: JWT & Auth]
+    Schemas --> Services[Services: Business Logic]
     
-    Core -->|1. Check Token & Permission| Redis[(Redis: Cache Storage)]
-    Core -->|2. Database Query| Models(Beanie Models)
+    Services -->|1. Check Token/Cache| Redis[(Redis: Cache Storage)]
+    Services -->|2. Data Access| Repositories[Repositories: DB Queries]
+    Repositories --> Models(Beanie Models)
     Models --> MongoDB[(MongoDB: Persistent Data)]
     
-    MongoDB -->|Return JSON| API
+    MongoDB -->|Return JSON| Repositories
+    Repositories -->|Return Objects| Services
+    Services -->|Return Output| API
     API -->|HTTP Response| Client
 ```
 
@@ -50,11 +53,13 @@ We enforce a strict **Separation of Concerns**. Every folder does exactly one th
 │   ├── main.py           # The absolute Entry Point. Boots the ASGI server and databases.
 │   ├── api/              # API Gateway
 │   │   └── v1/           # Versioning (Prevents breaking older mobile apps)
-│   │       └── routes/   # The Endpoints. Dynamic auto-discovery routing maps.
+│   │       └── routes/   # The Endpoints. Strict HTTP handling ONLY.
 │   │           ├── auth.py   # Login, Register, Logout
 │   │           ├── users.py  # Follow systems, Profile lookups
 │   │           └── posts.py  # Creating content, Following Feeds
 │   │
+│   ├── services/         # Business Logic Layer. All complex rules live here.
+│   ├── repositories/     # Data Access Layer. All MongoDB/Beanie queries live here.
 │   ├── core/             # Global configurations, Cryptography (Bcrypt), and global crash handlers.
 │   ├── db/               # Connection engines natively binding Mongo/Beanie and Redis pools.
 │   ├── middlewares/      # Pre-flight interceptors (NoSQL Sanitization, DDOS Shields).
@@ -75,29 +80,36 @@ When a simple web request hits the exact URI `POST /api/v1/auth/login`, it under
 
 ### The Request Lifecycle Pipeline
 1. **The Request Arrives**: The user sends `{"email": "abc@gmail.com", "password": "123"}`.
-2. **Middlewares Intercept**: The Request is instantly grabbed by `rate_limiter.py`. *Has this IP sent 100 requests this minute?* If yes, drop the connection immediately. Next, `mongo_sanitizer.py` sweeps the JSON to ensure `{"$where": ...}` hacking parameters aren't hidden inside.
-3. **Routing**: `main.py` looks at its vast map (loaded dynamically by `routes.py`) and passes the packet exactly to the `login()` function inside `auth.py`.
-4. **Validation (Pydantic)**: Before the `login()` function runs, FastAPI forces the JSON through the `UserLogin` Schema. The Schema validates that the email is actually a real `@gmail.com` string formatting. If invalid, the request dies right here with a `422 Unprocessable` error.
-5. **Business Logic (The Endpoint)**: The `login()` Python code finally runs. It asks the Database (Mongo) if the User exists. If yes, it hashes the provided password using `core/security.py` and checks if it matches. 
-6. **Tokens & Output**: The server generates a JWT JSON string, drops a backup copy strictly into the **Redis Token Store**, and fires it back to the client as an HTTP 200 OK. 
+2. **Middlewares Intercept**: The Request is instantly grabbed by `rate_limiter.py`. *Has this IP sent 100 requests this minute?* If yes, drop the connection immediately.
+3. **Routing**: `main.py` looks at its vast map and passes the packet exactly to the `login()` function inside `routes/auth.py`.
+4. **Validation (Pydantic)**: Before the `login()` function runs, FastAPI forces the JSON through the `LoginRequest` Schema validating the email.
+5. **Business Logic (Service)**: The `login()` route delegates to `services/auth_service.py`. The Service enforces business rules. 
+6. **Data Access (Repository)**: The Service asks `repositories/user_repo.py` if the user exists. The Repository queries MongoDB natively.
+7. **Tokens & Output**: The Service generates a JWT JSON string, drops a backup copy strictly into the **Redis Token Store**, and fires it back through the Route to the client. 
 
 ### Logic Flow Diagram: User Authentication
 ```mermaid
 sequenceDiagram
     participant C as Client
     participant F as FastAPI (Middlewares)
-    participant R as Router (Pydantic)
+    participant R as Route (Pydantic)
+    participant S as Service Layer
+    participant Repo as Repository Layer
     participant M as MongoDB
     participant Re as Redis
 
     C->>F: POST /login {"email", "password"}
     Note over F: Rate Limits & Security Checks
     F->>R: Route to auth.py
-    Note over R: Pydantic validates Email string
-    R->>M: await User.find_one(email)
-    M-->>R: Returns Hashed Password
-    Note over R: Bcrypt verifies plaintext == hashed
-    R->>Re: Save Refresh Token
+    Note over R: Pydantic validates input
+    R->>S: auth_service.login()
+    S->>Repo: user_repo.find_by_email()
+    Repo->>M: await User.find_one(...)
+    M-->>Repo: Returns User Object
+    Repo-->>S: Returns User Object
+    Note over S: Bcrypt verifies plaintext == hashed
+    S->>Re: Save Refresh Token
+    S-->>R: Returns Tokens
     R-->>C: 200 OK {access_token, refresh_token}
 ```
 
@@ -112,7 +124,7 @@ MongoDB doesn't use massive, messy Join tables for relational links. It favors e
 
 ### The Content Engine Feed Flow
 When you hit `GET /api/v1/posts/feed`, it fundamentally does *not* read all 1 million posts. 
-It queries the exact `following` array located inside your profile physically, extracts those exact 10 ID strings natively securely, and passes them specifically directly mapping broadly mathematically generically inherently intrinsically natively to an `In(...)` Graph Query natively smoothly hitting MongoDB. 
+The HTTP Route calls the `PostService`. The service extracts the `following` array located inside your profile physically, extracts those exact 10 ID strings, and passes them to the `PostRepository`. The Repository runs an advanced Aggregation Pipeline hitting MongoDB natively and smoothly bypasses Beanie LatentCursor bugs. 
 
 ```mermaid
 erDiagram

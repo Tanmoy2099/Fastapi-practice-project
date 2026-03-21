@@ -15,7 +15,7 @@ build:
 
 # ── Testing & Setup ─────────────────────────
 test:
-	docker compose run --rm -e PYTHONPATH=/app api pytest -W ignore
+	uv run pytest tests/ -W ignore
 
 install:
 	uv sync --frozen --no-install-project

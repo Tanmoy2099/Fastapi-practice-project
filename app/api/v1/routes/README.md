@@ -32,48 +32,25 @@ Wait, how does `main.py` know that `auth.py`, `users.py`, and `posts.py` exist? 
 
 ## 🔒 Endpoints Breakdown: What the code actually does
 
+The files in this folder are **"Thin Routers"**. They do NOT contain complex business rules or database queries. Their only job is to understand the HTTP Request, hand the data to the **Service Layer** (`app/services`), and return the response.
+
 ### 1. The Gateway: `auth.py`
-This file is heavily guarded. It controls who is allowed into your application.
-- **Registration (`/register`)**: 
-  When you POST JSON here, the code extracts your `body.password` plaintext string. It immediately passes it through `security.get_password_hash`. This transforms "my_password" into an ugly, unreadable 60-character scrambled string using Bcrypt. Only this scrambled string is saved into the MongoDB Database using `.insert()`. 
-- **Login (`/login`) & HttpOnly Cookies**: 
-  Takes your email and looks you up in MongoDB natively (`await User.find_one()`). If you exist, it checks if the password matches the scrambled hash. If yes, it creates an encrypted string called an Access Token (JSON Web Token), and a longer-lived **Refresh Token**.
-  *Security Upgrade:* Instead of giving the frontend the Refresh Token inside the JSON `body` (which makes you vulnerable to JavaScript XSS hacking), it uses a **`HttpOnly` Cookie**. This forces the Chrome/Firefox browser to securely hide the token in a vault where hackers cannot steal it, even if your frontend code is compromised! It saves your unique "Refresh" token securely into the **Redis Database** natively as the ultimate source of truth.
+This file serves your endpoints for authentication.
+- **Registration (`/register`) & Login (`/login`)**: 
+  These endpoints take the JSON payload, validate it via Pydantic, and immediately hand the email and password to `auth_service.py`. The service handles hashing and generates the tokens. The route's only job when the service returns the tokens is to securely format the HTTP Response by setting the `HttpOnly` Refresh Token cookie.
 - **Logout (`/logout-all`)**: 
-  Instantly tells Redis to permanently delete every trace of your authorization keys, and commands the client's browser to execute `response.delete_cookie()`. Your current token dies immediately everywhere.
+  Delegates to the service to permanently blacklist tokens in Redis, and commands the client's browser to execute `response.delete_cookie()`.
 
 ### 2. The People: `users.py`
-This file handles actions a user takes against *another* user's profile.
+This file exposes the social graph endpoints.
 - **Profile Queries (`/me`)**: 
-  Have you noticed that `/me` doesn't require an `id` in the URL? That's because it uses a FastAPI `Depends(get_current_active_user)`. This Dependency magically intercepts your Authorization token, decrypts it, finds out who you are, looks you up in Mongo, and directly injects your Python object right into the `current_user` variable!
-- **Follow System**: 
-  When you hit `/users/123/follow`, the code queries MongoDB. It finds your `User` profile object, grabs the `following` list (which is an array of IDs), and natively appends `123` to that array and updates MongoDB (`await current_user.save()`).
+  Uses the FastAPI Dependency `Depends(get_current_active_user)` to magically intercept the Authorization token, decrypt it, and inject the Python `User` object into the request.
+- **Follow System (`/users/{id}/follow`)**: 
+  Extracts the target user ID and passes it straight to `user_service.follow(current_user, target_id)`. The service handles all the logic of checking if you already follow them.
 
 ### 3. The Content: `posts.py`
-This file handles content creation securely.
+This file handles content creation and consumption.
 - **CRUD (Create, Read, Update, Delete)**: 
-  The `/posts` endpoints universally require `current_active_user`, locking strangers out entirely. When creating a post, it forces the author to be your exact ID natively. You can natively fetch single documents sequentially via `GET /{post_id}`.
-- **The Engine (`/feed` & Aggregation Pipelines)**:
-  This is the brilliant part. When you ask for your Feed, the code does not search all posts in the database. 
-  Instead, it grabs your `following` array containing the exact IDs of the people you follow, and uses a **MongoDB Aggregation Pipeline**.
-
-  ### What is an Aggregation Pipeline?
-  If you know SQL, think of this as writing raw `SELECT ... WHERE ... ORDER BY`. Instead of basic `.find()` commands, Aggregation allows us to build complex, multi-stage data processing lines perfectly on the database hardware before it ever reaches Python.
-
-  In `posts.py`, the pipeline natively maps like this:
-  ```python
-  pipeline = [
-      # STAGE 1 ($match): SQL 'WHERE'
-      {"$match": {"author_id": {"$in": current_user.following}}},
-      
-      # STAGE 2 ($sort): SQL 'ORDER BY DESC'
-      {"$sort": {"created_at": -1}}
-  ]
-
-  # Execute native PyMongo Aggregation (Extremely Fast)
-  cursor = Post.get_pymongo_collection().aggregate(pipeline)
-  return await cursor.to_list(length=None)
-  ```
-  1. **Stage 1 (`$match`)**: The physical database layer filters out anything where the `author_id` is NOT in your following list without Python ever seeing it. 
-  2. **Stage 2 (`$sort`)**: It sorts the surviving data chronologically right on the hard drive.
-  3. **The Result**: We aggressively grab the raw data dicts via `.get_pymongo_collection().aggregate()`. This bypasses heavy ODM overhead. We then loop over those tiny, lightning-fast dictionaries and map them perfectly to `PostResponse(id=...)` schema models immediately!
+  Endpoints like `POST /posts/` strictly require `current_active_user`, locking strangers out. The incoming JSON is passed directly to `post_service.create(...)`.
+- **The Engine (`/feed`)**:
+  When you ask for your Feed, the route calls `post_service.get_feed(current_user)`. The route itself has no idea how the feed is assembled, whether it comes from Redis cache, or how the MongoDB aggregation pipelines run. By keeping this logic out of the route, the route remains extremely fast and easy to test!

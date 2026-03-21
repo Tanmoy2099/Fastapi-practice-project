@@ -6,7 +6,11 @@ from app.models.user import User
 from app.schemas.post import PostCreate, PostResponse, PostUpdate
 from app.services.post_service import post_service
 
-router = APIRouter(prefix="/posts", tags=["Posts"])
+router = APIRouter(
+    prefix="/posts",
+    tags=["Posts"],
+    dependencies=[Depends(get_current_active_user)],
+)
 
 
 def _to_response(post: Post) -> PostResponse:
@@ -57,10 +61,7 @@ async def create_post(
 
 
 @router.get("/{post_id}", response_model=PostResponse)
-async def get_post(
-    post_id: str,
-    current_user: User = Depends(get_current_active_user),
-) -> PostResponse:
+async def get_post(post_id: str) -> PostResponse:
     post = await post_service.get_by_id(post_id)
     return _to_response(post)
 

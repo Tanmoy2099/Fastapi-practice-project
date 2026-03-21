@@ -1,17 +1,12 @@
-from beanie import PydanticObjectId
 from fastapi import APIRouter, Depends, status
 
-from app.core.exceptions import UnprocessableEntityException, NotFoundException, ForbiddenException
-from app.core.dependencies import get_current_active_user, require_role
-from beanie.operators import In
-from app.db.redis import cache
+from app.core.dependencies import get_current_active_user
 from app.models.post import Post
 from app.models.user import User
 from app.schemas.post import PostCreate, PostUpdate, PostResponse
+from app.services.post_service import post_service
 
 router = APIRouter(prefix="/posts", tags=["Posts"])
-
-_FEED_CACHE_TTL = 60  # seconds
 
 
 def _to_response(post: Post) -> PostResponse:
@@ -26,59 +21,13 @@ def _to_response(post: Post) -> PostResponse:
     )
 
 
-async def _get_post_or_404(post_id: str) -> Post:
-    try:
-        obj_id = PydanticObjectId(post_id)
-    except Exception:
-        raise UnprocessableEntityException("Invalid post ID")
-    post = await Post.get(obj_id)
-    if not post:
-        raise NotFoundException("Post not found")
-    return post
-
-
 # ── Feed (posts from followed users) ──────────────────────────────────────────
 
 @router.get("/feed", response_model=list[PostResponse])
 async def get_feed(
     current_user: User = Depends(get_current_active_user),
 ) -> list[PostResponse]:
-    cache_key = f"feed:{current_user.id}"
-    cached = await cache.get(cache_key)
-    if cached:
-        return cached
-
-    if not current_user.following:
-        return []
-
-    # Building an Aggregation Pipeline natively for MongoDB
-    pipeline = [
-        # Stage 1: Filter posts matching our criteria (like SQL WHERE)
-        {
-            "$match": {
-                "author_id": {"$in": current_user.following},
-                "published": True
-            }
-        },
-        # Stage 2: Sort by newest first (like SQL ORDER BY DESC)
-        {
-            "$sort": {"created_at": -1}
-        }
-    ]
-
-    # Execute native PyMongo pipeline to bypass Beanie LatentCursor awaiting bug
-    cursor = Post.get_pymongo_collection().aggregate(pipeline)
-    docs = await cursor.to_list(length=None)
-
-    result = []
-    for doc in docs:
-        doc["id"] = str(doc.pop("_id"))
-        doc["author_id"] = str(doc["author_id"])
-        result.append(PostResponse(**doc))
-
-    serialized = [r.model_dump() for r in result]
-    await cache.set(cache_key, serialized, ttl=_FEED_CACHE_TTL)
-    return result
+    return await post_service.get_feed(current_user)
 
 
 # ── Own posts ─────────────────────────────────────────────────────────────────
@@ -87,21 +36,7 @@ async def get_feed(
 async def get_my_posts(
     current_user: User = Depends(get_current_active_user),
 ) -> list[PostResponse]:
-    # Simple Aggregation Pipeline to fetch exact user posts
-    pipeline = [
-        {"$match": {"author_id": current_user.id}},
-        {"$sort": {"created_at": -1}}
-    ]
-    cursor = Post.get_pymongo_collection().aggregate(pipeline)
-    docs = await cursor.to_list(length=None)
-
-    result = []
-    for doc in docs:
-        doc["id"] = str(doc.pop("_id"))
-        doc["author_id"] = str(doc["author_id"])
-        result.append(PostResponse(**doc))
-        
-    return result
+    return await post_service.get_my_posts(str(current_user.id))
 
 
 # ── Create ────────────────────────────────────────────────────────────────────
@@ -111,9 +46,7 @@ async def create_post(
     body: PostCreate,
     current_user: User = Depends(get_current_active_user),
 ) -> PostResponse:
-    post = Post(title=body.title, content=body.content, author_id=current_user.id)
-    await post.insert()
-    await cache.delete(f"feed:{current_user.id}")  # invalidate own followers' feed
+    post = await post_service.create(body, current_user)
     return _to_response(post)
 
 
@@ -124,7 +57,7 @@ async def get_post(
     post_id: str,
     current_user: User = Depends(get_current_active_user),
 ) -> PostResponse:
-    post = await _get_post_or_404(post_id)
+    post = await post_service.get_by_id(post_id)
     return _to_response(post)
 
 
@@ -136,16 +69,7 @@ async def update_post(
     body: PostUpdate,
     current_user: User = Depends(get_current_active_user),
 ) -> PostResponse:
-    post = await _get_post_or_404(post_id)
-
-    if not post.is_owned_by(current_user.id) and not current_user.is_admin():
-        raise ForbiddenException("Not your post")
-
-    update_data = body.model_dump(exclude_none=True)
-    for field, value in update_data.items():
-        setattr(post, field, value)
-
-    await post.save()
+    post = await post_service.update(post_id, body, current_user)
     return _to_response(post)
 
 
@@ -156,9 +80,4 @@ async def delete_post(
     post_id: str,
     current_user: User = Depends(get_current_active_user),
 ) -> None:
-    post = await _get_post_or_404(post_id)
-
-    if not post.is_owned_by(current_user.id) and not current_user.is_admin():
-        raise ForbiddenException("Not your post")
-
-    await post.delete()
+    await post_service.delete(post_id, current_user)

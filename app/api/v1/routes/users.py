@@ -1,10 +1,9 @@
-from beanie import PydanticObjectId
 from fastapi import APIRouter, Depends, status
 
-from app.core.exceptions import UnprocessableEntityException, NotFoundException, BadRequestException, ConflictException
 from app.core.dependencies import get_current_active_user
 from app.models.user import User
 from app.schemas.user import UserResponse, UserProfile
+from app.services.user_service import user_service
 
 router = APIRouter(prefix="/users", tags=["Users"])
 
@@ -28,17 +27,6 @@ def _to_profile(user: User) -> UserProfile:
     )
 
 
-async def _get_user_or_404(user_id: str) -> User:
-    try:
-        obj_id = PydanticObjectId(user_id)
-    except Exception:
-        raise UnprocessableEntityException("Invalid user ID")
-    user = await User.get(obj_id)
-    if not user:
-        raise NotFoundException("User not found")
-    return user
-
-
 # ── Profile ───────────────────────────────────────────────────────────────────
 
 @router.get("/me", response_model=UserResponse)
@@ -48,7 +36,7 @@ async def get_me(current_user: User = Depends(get_current_active_user)) -> UserR
 
 @router.get("/{user_id}", response_model=UserProfile)
 async def get_user_profile(user_id: str) -> UserProfile:
-    user = await _get_user_or_404(user_id)
+    user = await user_service.get_by_id(user_id)
     return _to_profile(user)
 
 
@@ -59,16 +47,7 @@ async def follow_user(
     user_id: str,
     current_user: User = Depends(get_current_active_user),
 ) -> None:
-    target = await _get_user_or_404(user_id)
-
-    if target.id == current_user.id:
-        raise BadRequestException("Cannot follow yourself")
-
-    if current_user.follows(target.id):
-        raise ConflictException("Already following this user")
-
-    current_user.following.append(target.id)
-    await current_user.save()
+    await user_service.follow(current_user, user_id)
 
 
 @router.delete("/{user_id}/follow", status_code=status.HTTP_204_NO_CONTENT)
@@ -76,30 +55,18 @@ async def unfollow_user(
     user_id: str,
     current_user: User = Depends(get_current_active_user),
 ) -> None:
-    target = await _get_user_or_404(user_id)
-
-    if not current_user.follows(target.id):
-        raise NotFoundException("Not following this user")
-
-    current_user.following.remove(target.id)
-    await current_user.save()
+    await user_service.unfollow(current_user, user_id)
 
 
 # ── Follow lists ──────────────────────────────────────────────────────────────
 
 @router.get("/{user_id}/following", response_model=list[UserProfile])
 async def get_following(user_id: str) -> list[UserProfile]:
-    user = await _get_user_or_404(user_id)
-    following_users = await User.find(
-        {"_id": {"$in": user.following}}
-    ).to_list()
+    following_users = await user_service.get_following(user_id)
     return [_to_profile(u) for u in following_users]
 
 
 @router.get("/{user_id}/followers", response_model=list[UserProfile])
 async def get_followers(user_id: str) -> list[UserProfile]:
-    target = await _get_user_or_404(user_id)
-    followers = await User.find(
-        {"following": target.id}
-    ).to_list()
+    followers = await user_service.get_followers(user_id)
     return [_to_profile(u) for u in followers]

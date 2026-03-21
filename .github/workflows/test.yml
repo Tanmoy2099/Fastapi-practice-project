@@ -16,8 +16,8 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v5
 
-      - name: Boot Databases via Docker Compose
-        run: docker compose up -d mongo redis
+      - name: Setup Python & Install Dependencies
+        run: uv sync --all-extras
 
-      - name: Run Pytest Suite
-        run: docker compose run --rm -e PYTHONPATH=/app api pytest
+      - name: Run Pytest Suite natively
+        run: uv run pytest tests/ -W ignore

@@ -164,23 +164,26 @@ This globally commands the automated testing robots to forcefully sync their asy
 
 ---
 
-## 🛠️ 6. Getting Started & Running the Tests
+## 🛠️ 6. Getting Started & Running the Code
 
-**1. Boot the Ecosystem Databases:**
+The entire project is deeply integrated with a universal **Makefile**. You no longer have to memorize massive Docker or UV commands.
+
+**1. Clone the project and install all dependencies & security hooks:**
 ```bash
-docker compose up -d
+make install
 ```
 
-**2. Synchronize your Python variables:**
+**2. Boot the Ecosystem (MongoDB, Redis, and FastAPI Docker Engine):**
 ```bash
-uv sync
+make up
 ```
+*(To view the live traffic logs streaming natively, simply run `make logs`!)*
 
-**3. Launch the Application!**
+**3. (Optional) Launch the Application outside Docker (Bare Metal):**
 ```bash
-uv run uvicorn app.main:app --reload
+make start
 ```
-Go to **http://localhost:8000/docs** to interact securely dynamically organically mathematically identically with your live API!
+Go to **http://localhost:8000/docs** to interact securely with your live API!
 
 ### Running the End-to-End TestClient Suite
 The backend is 100% covered by Pytest configurations explicitly overriding environmental databases.

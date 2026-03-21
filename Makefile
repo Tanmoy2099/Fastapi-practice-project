@@ -20,3 +20,6 @@ test:
 install:
 	uv sync
 	uv run pre-commit install -t pre-push
+
+start:
+	uv run uvicorn app.main:app --reload

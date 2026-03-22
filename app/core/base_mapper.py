@@ -4,9 +4,10 @@ from typing import Generic, TypeVar
 DTOType = TypeVar("DTOType")
 DomainType = TypeVar("DomainType")
 
+
 class BaseMapper(ABC, Generic[DTOType, DomainType]):
     """
-    Abstract Base Class for mapping API payloads (DTOs) 
+    Abstract Base Class for mapping API payloads (DTOs)
     to internal business logic representations (Domain models).
     """
 

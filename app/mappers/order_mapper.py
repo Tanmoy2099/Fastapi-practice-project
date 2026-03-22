@@ -1,20 +1,9 @@
 from app.core.base_mapper import BaseMapper
-from app.dto.order_request import (
-    OrderRequest,
-    CardPayment,
-    PaypalPayment,
-    GPayPayment
-)
-from app.domain.order import (
-    Order,
-    Product,
-    Meta,
-    MetaPrice,
-    Payment
-)
+from app.domain.order import Meta, MetaPrice, Order, Payment, Product
+from app.dto.order_request import CardPayment, GPayPayment, OrderRequest, PaypalPayment
+
 
 class OrderMapper(BaseMapper[OrderRequest, Order]):
-    
     @staticmethod
     def to_domain(req: OrderRequest) -> Order:
         d = req.data
@@ -27,24 +16,14 @@ class OrderMapper(BaseMapper[OrderRequest, Order]):
                     "card_number": req.payment.card_number,
                     "cvv": req.payment.cvv,
                     "save_card": req.payment.save_card,
-                }
+                },
             )
 
         elif isinstance(req.payment, PaypalPayment):
-            payment = Payment(
-                method="paypal",
-                details={
-                    "token": req.payment.paypal_token
-                }
-            )
+            payment = Payment(method="paypal", details={"token": req.payment.paypal_token})
 
         elif isinstance(req.payment, GPayPayment):
-            payment = Payment(
-                method="gpay",
-                details={
-                    "token": req.payment.gpay_token
-                }
-            )
+            payment = Payment(method="gpay", details={"token": req.payment.gpay_token})
 
         else:
             raise ValueError("Unsupported payment type")
@@ -63,7 +42,7 @@ class OrderMapper(BaseMapper[OrderRequest, Order]):
                     new_price=d.meta.price.current,
                 ),
             ),
-            payment=payment
+            payment=payment,
         )
 
     @staticmethod
